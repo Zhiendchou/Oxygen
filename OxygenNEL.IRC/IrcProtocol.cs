@@ -62,10 +62,10 @@ public static class IrcProtocol
             if (parts.Length >= 2) msg.Data = parts[1];
             if (parts.Length >= 3) msg.Players = parts[2].Split(',');
         }
-        else if (line.StartsWith("["))
+        else if (line.StartsWith("CHAT_BROADCAST "))
         {
             msg.Type = "CHAT_BROADCAST";
-            msg.Data = line;
+            msg.Data = line.Substring(15);
         }
         else
         {

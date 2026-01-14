@@ -49,7 +49,6 @@ public class CChatCommandIrc : IPacket
 
     public bool HandlePacket(GameConnection connection)
     {
-        Log.Debug("[IRC] HandlePacket: cmd={Cmd}, isIrc={IsIrc}", _command, _isIrcCommand);
         if (!_isIrcCommand) return false;
         if (!IrcManager.Enabled) return false;
 
@@ -69,9 +68,9 @@ public class CChatCommandIrc : IPacket
         }
 
         var ircClient = IrcManager.Get(connection);
-        Log.Debug("[IRC] Get client: {Client}, conn={Conn}", ircClient != null, connection.GameId);
         if (ircClient == null)
         {
+            Log.Warning("[IRC] 未找到客户端: {GameId}", connection.GameId);
             SendLocalMessage(connection, "§c[IRC] IRC 未连接");
             return true;
         }

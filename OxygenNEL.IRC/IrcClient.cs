@@ -48,15 +48,25 @@ public class IrcClient : IDisposable
     {
         _running = false;
         _pingTimer?.Dispose();
-        try { _tcp?.Send(IrcProtocol.Quit()); } catch { }
+        try
+        {
+            if (!string.IsNullOrEmpty(_token) && !string.IsNullOrEmpty(_roleId))
+                _tcp?.Send(IrcProtocol.Delete(_token, _roleId));
+        }
+        catch { }
         _tcp?.Close();
     }
 
     public void SendChat(string playerName, string msg)
     {
+        if (_tcp == null)
+        {
+            Log.Warning("[IRC] SendChat: TCP 未连接");
+            return;
+        }
         var cmd = IrcProtocol.Chat(_token, _roleId, msg);
-        Log.Debug("[IRC] 发送: {Cmd}", cmd);
-        _tcp?.Send(cmd);
+        Log.Information("[IRC] 发送聊天: {Cmd}", cmd);
+        _tcp.Send(cmd);
     }
 
     public void Dispose()
@@ -107,6 +117,11 @@ public class IrcClient : IDisposable
         if (msg == null) return;
 
         if (msg.IsOk && !_welcomed)
+        {
+            _welcomed = true;
+            _tcp?.Send(IrcProtocol.List());
+        }
+        else if (msg.IsError && msg.Data.Contains("已注册"))
         {
             _welcomed = true;
             _tcp?.Send(IrcProtocol.List());
