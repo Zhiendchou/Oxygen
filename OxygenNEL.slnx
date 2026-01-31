@@ -4,7 +4,7 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="OxygenNEL.Core\OxygenNEL.Core.csproj" Type="Classic C#">
+  <Project Path="OxygenNEL.Core\OxygenNEL.core.csproj" Type="Classic C#">
     <Configuration Solution="Debug|ARM64" Project="Debug|Any CPU" />
     <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
     <Configuration Solution="Debug|x86" Project="Debug|Any CPU" />
