@@ -8,11 +8,10 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest  # <--- 将 ubuntu-latest 改为 windows-latest
+    runs-on: windows-latest # 必须是 Windows
 
     strategy:
       matrix:
-        # 根据你的 slnx 文件配置，这里列出了你定义的构建目标
         configuration: [Debug, Release]
         platform: [x64, x86, ARM64]
 
@@ -20,19 +19,16 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup .NET 9 SDK (Required for SLNX)
+    - name: Setup .NET 9 SDK
       uses: actions/setup-dotnet@v4
       with:
-        # 注意：SLNX 格式需要 .NET SDK 9.0.200 或更高版本
-        dotnet-version: '9.0.2xx' 
+        dotnet-version: '9.0.2xx'
 
     - name: Restore Dependencies
-      # 直接指向 slnx 文件进行还原
       run: dotnet restore OxygenNEL.slnx
 
     - name: Build
-      # 使用 matrix 中的配置和平台进行构建
-      # 注意：dotnet build 的参数 -a (architecture) 和 -c (configuration)
+      shell: bash # 关键：使用 Bash 以支持 \ 换行符
       run: |
         dotnet build OxygenNEL.slnx \
           --no-restore \
