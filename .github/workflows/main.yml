@@ -1,22 +1,36 @@
-name: Build SLNX Solution
+name: Build and Release System
+
+permissions:
+  contents: write # 必须：允许脚本创建 Release
 
 on:
+  # 方式1：手动触发（最简单）
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '发布版本号 (例如 v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+      prerelease:
+        description: '是否为预发布版本 (Pre-release)?'
+        type: boolean
+        default: false
+
+  # 方式2：当你本地 push tag 时自动触发
   push:
-    branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
+    tags:
+      - 'v*'
 
 jobs:
+  # 1. 构建与打包 (Windows环境)
   build:
-    runs-on: windows-latest # 必须是 Windows
-
+    runs-on: windows-latest
     strategy:
       matrix:
-        configuration: [Debug, Release]
         platform: [x64, x86, ARM64]
 
     steps:
-    - name: Checkout code
+    - name: Checkout
       uses: actions/checkout@v4
 
     - name: Setup .NET 9 SDK
@@ -24,13 +38,62 @@ jobs:
       with:
         dotnet-version: '9.0.2xx'
 
-    - name: Restore Dependencies
+    - name: Restore
       run: dotnet restore OxygenNEL.slnx
 
-    - name: Build
-      shell: bash # 关键：使用 Bash 以支持 \ 换行符
+    - name: Publish
+      shell: bash
+      # 构建并发布到临时文件夹
       run: |
-        dotnet build OxygenNEL.slnx \
+        dotnet publish OxygenNEL.slnx \
           --no-restore \
-          --configuration ${{ matrix.configuration }} \
-          -p:Platform=${{ matrix.platform }}
+          --configuration Release \
+          -p:Platform=${{ matrix.platform }} \
+          --output ./out
+
+    - name: Zip Artifacts
+      shell: pwsh
+      # 压缩成 Zip
+      run: |
+        $name = "OxygenNEL-${{ matrix.platform }}.zip"
+        Compress-Archive -Path ./out/* -DestinationPath $name
+        echo "ZIP_NAME=$name" >> $env:GITHUB_ENV
+
+    - name: Upload to Action
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ZIP_NAME }}
+        path: ${{ env.ZIP_NAME }}
+        retention-days: 1
+
+  # 2. 创建 Release 页面 (Ubuntu环境，速度快)
+  create-release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./assets
+        merge-multiple: true # 把所有 Zip 下载到同一个目录
+
+    - name: Determine Tag Name
+      id: tag
+      shell: bash
+      # 判断是手动触发还是 Tag 触发，确定版本号
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          echo "name=${{ inputs.version }}" >> $GITHUB_OUTPUT
+        else
+          echo "name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Publish Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.tag.outputs.name }} # 使用确定的版本号
+        files: ./assets/*.zip   # 上传所有 zip
+        prerelease: ${{ inputs.prerelease }}
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
